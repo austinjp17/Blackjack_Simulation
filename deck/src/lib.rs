@@ -179,18 +179,6 @@ impl Deck {
         let mut rng = thread_rng();
         self.cards.shuffle(&mut rng);
     }
-
-    // Constructs a blackjack deck with `num_decks` standard decks shuffled together
-    fn blackjack(num_decks: usize) -> Self {
-        let standard_deck = Self::standard();
-        let mut cards = Vec::with_capacity(52 * num_decks);
-        for _ in 0..num_decks {
-            cards.extend(standard_deck.cards.iter());
-        }
-        let mut blackjack_deck = Self { cards };
-        blackjack_deck.shuffle_thread_rng();
-        blackjack_deck
-    }
 }
 
 #[cfg(test)]
