@@ -1,15 +1,8 @@
 [package]
-name = "blackjack"
+name = "deck"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[lib]
-name = "deck"
-path = "src/deck/src/lib.rs"
-
-[[bin]]
-name = "bj"
-path = "src/main.rs"
 
 [dependencies]
