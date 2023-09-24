@@ -4,6 +4,7 @@
 use core::slice::Iter;
 use rand::seq::SliceRandom; // Required for shuffling the deck
 use rand::thread_rng;
+use std::fmt;
 
 /// Card Suit representation
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -19,6 +20,17 @@ impl Suit {
     pub fn iterator() -> Iter<'static, Suit> {
         static SUITS: [Suit; 4] = [Suit::Hearts, Suit::Diamonds, Suit::Clubs, Suit::Spades];
         SUITS.iter()
+    }
+}
+
+impl fmt::Display for Suit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Suit::Hearts => write!(f, "Hearts"),
+            Suit::Diamonds => write!(f, "Diamonds"),
+            Suit::Clubs => write!(f, "Clubs"),
+            Suit::Spades => write!(f, "Spades"),
+        }
     }
 }
 
@@ -82,6 +94,27 @@ impl Rank {
     }
 }
 
+impl fmt::Display for Rank {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Rank::Ace => write!(f, "Ace"),
+            Rank::Two => write!(f, "Two"),
+            Rank::Three => write!(f, "Three"),
+            Rank::Four => write!(f, "Four"),
+            Rank::Five => write!(f, "Five"),
+            Rank::Six => write!(f, "Six"),
+            Rank::Seven => write!(f, "Seven"),
+            Rank::Eight => write!(f, "Eight"),
+            Rank::Nine => write!(f, "Nine"),
+            Rank::Ten => write!(f, "Ten"),
+            Rank::Jack => write!(f, "Jack"),
+            Rank::Queen => write!(f, "Queen"),
+            Rank::King => write!(f, "King"),
+            Rank::Blank => write!(f, "Blank"),
+        }
+    }
+}
+
 // Define a card as a combination of rank and suit
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct Card {
@@ -109,6 +142,12 @@ impl Card {
 
     pub fn value(&self) -> u8 {
         self.rank.value(self.inflated)
+    }
+}
+
+impl fmt::Display for Card {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} of {}", self.rank, self.suit)
     }
 }
 
@@ -156,7 +195,96 @@ impl Deck {
 
 #[cfg(test)]
 mod tests {
+    use crate::{Card, Deck, Rank, Suit};
 
     #[test]
-    fn valid_simple_deck() {}
+    fn test_standard_deck_gen() {
+        let deck = Deck::standard();
+        assert_eq!(deck.cards.len(), 52);
+
+        let mut expected_cards = Vec::new();
+        for &suit in Suit::iterator() {
+            for &rank in Rank::iterator() {
+                expected_cards.push(Card {
+                    rank,
+                    suit,
+                    inflated: true,
+                });
+            }
+        }
+
+        for (i, card) in deck.cards.iter().enumerate() {
+            assert_eq!(card.to_string(), expected_cards[i].to_string());
+        }
+    }
+
+    #[test]
+    fn test_standard_deck_static() {
+        let deck = Deck::standard();
+        let mut deck_as_strings = deck
+            .cards
+            .iter()
+            .map(|c| format!("{c}"))
+            .collect::<Vec<String>>();
+        assert_eq!(deck_as_strings.len(), 52);
+
+        let mut expected_cards = vec![
+            "Ace of Clubs",
+            "Two of Clubs",
+            "Three of Clubs",
+            "Four of Clubs",
+            "Five of Clubs",
+            "Six of Clubs",
+            "Seven of Clubs",
+            "Eight of Clubs",
+            "Nine of Clubs",
+            "Ten of Clubs",
+            "Jack of Clubs",
+            "Queen of Clubs",
+            "King of Clubs",
+            "Ace of Diamonds",
+            "Two of Diamonds",
+            "Three of Diamonds",
+            "Four of Diamonds",
+            "Five of Diamonds",
+            "Six of Diamonds",
+            "Seven of Diamonds",
+            "Eight of Diamonds",
+            "Nine of Diamonds",
+            "Ten of Diamonds",
+            "Jack of Diamonds",
+            "Queen of Diamonds",
+            "King of Diamonds",
+            "Ace of Hearts",
+            "Two of Hearts",
+            "Three of Hearts",
+            "Four of Hearts",
+            "Five of Hearts",
+            "Six of Hearts",
+            "Seven of Hearts",
+            "Eight of Hearts",
+            "Nine of Hearts",
+            "Ten of Hearts",
+            "Jack of Hearts",
+            "Queen of Hearts",
+            "King of Hearts",
+            "Ace of Spades",
+            "Two of Spades",
+            "Three of Spades",
+            "Four of Spades",
+            "Five of Spades",
+            "Six of Spades",
+            "Seven of Spades",
+            "Eight of Spades",
+            "Nine of Spades",
+            "Ten of Spades",
+            "Jack of Spades",
+            "Queen of Spades",
+            "King of Spades",
+        ];
+        expected_cards.sort();
+        deck_as_strings.sort();
+
+        assert!(expected_cards.iter().eq(deck_as_strings.iter()));
+    }
 }

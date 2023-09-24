@@ -1,10 +1,8 @@
-
-
 # Blackjack Simulation
 
 ## The Pack
 
-A standard 52-card deck is used, however most casinos will shuffle multiple decks together. 6 decks (312 cards) is the most popular iteration. Casinos will include a blank card initially toward the bottom to indicate when to shuffle. 
+A standard 52-card deck is used, however most casinos will shuffle multiple decks together. 6 decks (312 cards) is the most popular iteration. Casinos will include a blank card initially toward the bottom to indicate when to shuffle.
 
 ## Goal
 
@@ -38,7 +36,7 @@ If a player's first two cards are an ace and 10 pip card, giving a count of 21, 
 
 ## The Play
 
-The left player goes first. Decides whether to "stand" (stay where they are) or "hit" (get another card). The dealer continues with a specific player until they hold. 
+The left player goes first. Decides whether to "stand" (stay where they are) or "hit" (get another card). The dealer continues with a specific player until they hold.
 
 ## Dealer Play
 
@@ -52,7 +50,7 @@ If the dealer has an ace whiched counted as 11, puts them at or over the 17 mark
 
 ## Splitting Pairs
 
-If the players first two cards are the same denomination, the may choose to treat them as seperate hands when their turn comes. The original bet goes on one of the cards, and an equal amount must be placed on the other. The player plays the hand on the left with the dealer, then right. Each hand is treated seperately, and the dealer settles with each on it's own merits. 
+If the players first two cards are the same denomination, the may choose to treat them as seperate hands when their turn comes. The original bet goes on one of the cards, and an equal amount must be placed on the other. The player plays the hand on the left with the dealer, then right. Each hand is treated seperately, and the dealer settles with each on it's own merits.
 
 **Pair of Aces**: The player is given one card for each ace and not allowed to draw again. If they recieve a 10-card on one of these draws, the payoff is equal to the bet (not 1.5 times).
 
@@ -74,49 +72,46 @@ A key advantage the house has is that all players go first. If the house busts i
 
 ## Reshuffling
 
-When each players bet is settled, the games cards are collected and set aside. Each game's cards are removed from play until the empty card is dealt, at which point all cards will be reshuffled, cut, and empty card replaced. 
+When each players bet is settled, the games cards are collected and set aside. Each game's cards are removed from play until the empty card is dealt, at which point all cards will be reshuffled, cut, and empty card replaced.
 
 ## Basic Strategy
 
 - Dealer Up-card
 
-    - Good (7, 8, 9, 10, 11): Draw until 17 or more
+  - Good (7, 8, 9, 10, 11): Draw until 17 or more
 
-    - Fair (2, 3): Draw until 13 or greater
+  - Fair (2, 3): Draw until 13 or greater
 
-    - Poor (4, 5, 6): Draw until 12 or greater
+  - Poor (4, 5, 6): Draw until 12 or greater
 
-        - Strategy here is never take a card if any chance of bust. The goal is to let the dealer bust.
+    - Strategy here is never take a card if any chance of bust. The goal is to let the dealer bust.
 
 - Doubling Down
 
-    - 11: Always double down
+  - 11: Always double down
 
-    - 10: Double down unless 10 or ace dealer upcard
+  - 10: Double down unless 10 or ace dealer upcard
 
-    - 9: Double down if dealer upcard is fair or poor (2-6)
+  - 9: Double down if dealer upcard is fair or poor (2-6)
 
 - Splitting
 
-    - Always split aces and eights
+  - Always split aces and eights
 
-    - Don't split 10's, 5's, or 4's
-    
-        - 5's = 10, generally more effective to double down
+  - Don't split 10's, 5's, or 4's
 
-    - Generally split 2s, 3s, or 7s
+    - 5's = 10, generally more effective to double down
 
-        - unless dealer has 8, 9, 10 or ace
+  - Generally split 2s, 3s, or 7s
 
-    - Only Split 6s if dealer card is poor
+    - unless dealer has 8, 9, 10 or ace
 
-        
+  - Only Split 6s if dealer card is poor
 
+### Unit Tests
 
+To run the unit tests across all the libraries:
 
-
-
-
-
-
-
+```bash
+cargo test --workspace
+```
