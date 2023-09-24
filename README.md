@@ -76,7 +76,7 @@ When each players bet is settled, the games cards are collected and set aside. E
 
 ## Basic Strategy
 
-- Dealer Up-card
+- **Dealer Up-card**
 
   - Good (7, 8, 9, 10, 11): Draw until 17 or more
 
