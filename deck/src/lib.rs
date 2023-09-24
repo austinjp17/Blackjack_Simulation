@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Provides a [`Deck`] implementation for simulating black jack games.
 
 use core::slice::Iter;
@@ -84,8 +85,8 @@ impl Rank {
 // Define a card as a combination of rank and suit
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct Card {
-    rank: Rank,
-    suit: Suit,
+    pub rank: Rank,
+    pub suit: Suit,
     inflated: bool,
 }
 
@@ -114,15 +115,13 @@ impl Card {
 // Define a deck
 #[derive(Debug, Clone)]
 struct Deck {
-    cards: Vec<Card>,
+    pub cards: Vec<Card>,
 }
 
 impl Deck {
     // Constructs a new, sorted standard deck
     pub fn standard() -> Self {
         let mut cards = Vec::with_capacity(52);
-        let suits = Suit::iterator();
-        let ranks = Rank::iterator();
 
         for &suit in Suit::iterator() {
             for &rank in Rank::iterator() {
