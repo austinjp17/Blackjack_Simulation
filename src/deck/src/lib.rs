@@ -2,14 +2,15 @@
 //! Provides a [`Deck`] implementation for simulating black jack games.
 
 use core::slice::Iter;
+use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom; // Required for shuffling the deck
-use rand::thread_rng;
+use rand::{thread_rng, Rng, RngCore};
 use std::fmt;
 
 /// Card Suit representation
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
-enum Suit {
+pub enum Suit {
     Hearts,
     Diamonds,
     Clubs,
@@ -37,7 +38,7 @@ impl fmt::Display for Suit {
 /// Card rank representation.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
-enum Rank {
+pub enum Rank {
     Ace = 1, // or 11 depending on if the card is "inflated", the default state.
     Two = 2,
     Three = 3,
@@ -153,13 +154,17 @@ impl fmt::Display for Card {
 
 // Define a deck
 #[derive(Debug, Clone)]
-struct Deck {
-    pub cards: Vec<Card>,
+pub struct Deck<T: Rng + Sized + Clone> {
+    rng: T,
+    cards: Vec<Card>,
 }
 
-impl Deck {
+impl<R> Deck<R>
+where
+    R: Rng + Sized + Clone,
+{
     // Constructs a new, sorted standard deck
-    pub fn standard() -> Self {
+    pub fn standard(rng: R) -> Self {
         let mut cards = Vec::with_capacity(52);
 
         for &suit in Suit::iterator() {
@@ -171,23 +176,50 @@ impl Deck {
                 });
             }
         }
-        Self { cards }
+        Self { cards, rng }
     }
 
     // Shuffles the deck in place
+    pub fn shuffle_thread_rng(&mut self, rng: &mut R) {
+        self.cards.shuffle(rng);
+    }
+}
+
+pub struct MultiDeck<R: Rng + Sized + Clone> {
+    decks: Vec<Deck<R>>,
+    rng: R,
+}
+
+impl<R> MultiDeck<R>
+where
+    R: Rng + Sized + Clone,
+{
+    pub fn new(size: u8, rng: R) -> Self {
+        let mut decks = Vec::with_capacity(size as usize);
+        for _ in 0..size {
+            decks.push(Deck::standard(rng.clone()));
+        }
+        Self { decks, rng }
+    }
+
     pub fn shuffle_thread_rng(&mut self) {
-        let mut rng = thread_rng();
-        self.cards.shuffle(&mut rng);
+        self.decks
+            .iter_mut()
+            .for_each(|d| d.shuffle_thread_rng(&mut self.rng));
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::os::unix::thread;
+
+    use rand::thread_rng;
+
     use crate::{Card, Deck, Rank, Suit};
 
     #[test]
     fn test_standard_deck_gen() {
-        let deck = Deck::standard();
+        let deck = Deck::standard(thread_rng());
         assert_eq!(deck.cards.len(), 52);
 
         let mut expected_cards = Vec::new();
@@ -208,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_standard_deck_static() {
-        let deck = Deck::standard();
+        let deck = Deck::standard(thread_rng());
         let mut deck_as_strings = deck
             .cards
             .iter()

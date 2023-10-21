@@ -5,8 +5,11 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [[bin]]
-name = "bj"
-path = "bj/src/main.rs"
+name = "blackjack_sim"
+path = "src/main.rs"
 
 [workspace]
-members = ["deck", "game", "bj"]
+members = ["src/deck", "src/game"]
+
+[dependencies]
+deck = { path = "src/deck" }
