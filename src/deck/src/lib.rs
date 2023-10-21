@@ -154,17 +154,13 @@ impl fmt::Display for Card {
 
 // Define a deck
 #[derive(Debug, Clone)]
-pub struct Deck<T: Rng + Sized + Clone> {
-    rng: T,
+pub struct Deck {
     cards: Vec<Card>,
 }
 
-impl<R> Deck<R>
-where
-    R: Rng + Sized + Clone,
-{
+impl Deck {
     // Constructs a new, sorted standard deck
-    pub fn standard(rng: R) -> Self {
+    pub fn standard() -> Self {
         let mut cards = Vec::with_capacity(52);
 
         for &suit in Suit::iterator() {
@@ -176,28 +172,31 @@ where
                 });
             }
         }
-        Self { cards, rng }
+        Self { cards }
     }
 
     // Shuffles the deck in place
-    pub fn shuffle_thread_rng(&mut self, rng: &mut R) {
+    pub fn shuffle_rng<R>(&mut self, rng: &mut R)
+    where
+        R: Rng + ?Sized,
+    {
         self.cards.shuffle(rng);
     }
 }
 
-pub struct MultiDeck<R: Rng + Sized + Clone> {
-    decks: Vec<Deck<R>>,
+pub struct MultiDeck<R: Rng + ?Sized> {
+    decks: Vec<Deck>,
     rng: R,
 }
 
 impl<R> MultiDeck<R>
 where
-    R: Rng + Sized + Clone,
+    R: Rng + Sized,
 {
     pub fn new(size: u8, rng: R) -> Self {
         let mut decks = Vec::with_capacity(size as usize);
         for _ in 0..size {
-            decks.push(Deck::standard(rng.clone()));
+            decks.push(Deck::standard());
         }
         Self { decks, rng }
     }
@@ -205,21 +204,17 @@ where
     pub fn shuffle_thread_rng(&mut self) {
         self.decks
             .iter_mut()
-            .for_each(|d| d.shuffle_thread_rng(&mut self.rng));
+            .for_each(|d| d.shuffle_rng(&mut self.rng));
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::os::unix::thread;
-
-    use rand::thread_rng;
-
     use crate::{Card, Deck, Rank, Suit};
 
     #[test]
     fn test_standard_deck_gen() {
-        let deck = Deck::standard(thread_rng());
+        let deck = Deck::standard();
         assert_eq!(deck.cards.len(), 52);
 
         let mut expected_cards = Vec::new();
@@ -240,7 +235,7 @@ mod tests {
 
     #[test]
     fn test_standard_deck_static() {
-        let deck = Deck::standard(thread_rng());
+        let deck = Deck::standard();
         let mut deck_as_strings = deck
             .cards
             .iter()

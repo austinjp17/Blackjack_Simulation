@@ -13,3 +13,4 @@ members = ["src/deck", "src/game"]
 
 [dependencies]
 deck = { path = "src/deck" }
+rand = "0.8.5"
