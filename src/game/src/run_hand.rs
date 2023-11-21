@@ -1,4 +1,4 @@
-use crate::{deck::Hand, playing_strategy::PlayerDecision, EndState, Game, HandState, Winner};
+use crate::{deck::{Hand, Rank}, playing_strategy::PlayerDecision, EndState, Game, HandState, Winner};
 use rand::Rng;
 
 impl<R: Rng + Clone> Game<R> {
@@ -10,10 +10,17 @@ impl<R: Rng + Clone> Game<R> {
     }
 
     pub fn handle_player_hand(&mut self, hand: &Hand) {
+        assert!(self.dealer.hand.is_some()); // Dealer must have hand
+        let upcard = self.get_dealer_upcard().unwrap();
         if !hand.is_finished() {
             // Check for Natural on first iteration
             if self.natural_check(hand) {
                 self.player_natural(hand);
+            }
+
+            // Check for Dealer Ace if insurance
+            if upcard.rank == Rank::Ace && self.player.consider_insurance {
+
             }
 
             // Player hand response
@@ -108,39 +115,49 @@ impl<R: Rng + Clone> Game<R> {
             .player
             .hands
             .iter()
-            .map(|hand| {
+            .map(|player_hand| {
                 // Var initialization
                 let mut winner: Option<Winner> = None;
                 let mut end_state = EndState::default();
-                let dealer_val = self.dealer.hand.as_ref().expect("").value();
+
+                let dealer_hand = self.dealer.hand.as_ref().expect("");
 
                 // Assign State flag
                 end_state.hand_bet = self.last_bet;
 
-                if hand.doubled {
+                if player_hand.doubled {
                     end_state.p_doubled = true
                 }
 
-                if hand.natural {
+                if player_hand.natural {
                     end_state.p_natural = true
                 }
 
-                if self.dealer.hand.as_ref().expect("").natural {
-                    end_state.d_natural = true
+                // Dealer Natural
+                if dealer_hand.natural {
+                    end_state.d_natural = true;
+                    // Dealer wins w/ natural if player doesn't have
+                    if !player_hand.natural {
+                        winner = Some(Winner::Dealer);
+                    }
                 }
+
+                
 
                 // Bust Checks
                 // Player would bust before dealer, so check first and award dealer win even if
                 // they go over 21 drawing, b/c wouldn't draw any in real life.
 
                 // Player Bust
-                if hand.value() > 21 {
+                if player_hand.value() > 21 {
                     end_state.p_bust = true;
-                    winner = Some(Winner::Dealer)
+                    if winner.is_none() {
+                        winner = Some(Winner::Dealer)
+                    }
                 }
 
                 // Dealer Bust
-                if dealer_val > 21 {
+                if dealer_hand.value() > 21 {
                     end_state.d_bust = true;
                     if winner.is_none() {
                         winner = Some(Winner::Player)
@@ -148,11 +165,11 @@ impl<R: Rng + Clone> Game<R> {
                 }
 
                 // Tie
-                if hand.value() == dealer_val {
+                if player_hand.value() == dealer_hand.value() {
                     winner = Some(Winner::Tie)
                 }
                 // Player Win
-                else if hand.value() > dealer_val {
+                else if player_hand.value() > dealer_hand.value() {
                     if winner.is_none() {
                         winner = Some(Winner::Player);
                     }

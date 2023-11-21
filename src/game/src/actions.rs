@@ -1,5 +1,5 @@
-use rand::{Rng, thread_rng};
-use crate::{Game, Hand, HandState, deck::{Card, MultiDeck, Deck}};
+use rand::Rng;
+use crate::{Game, Hand, HandState, deck::{Card, MultiDeck}};
 use std::{time::Instant, ops::Div};
 
 

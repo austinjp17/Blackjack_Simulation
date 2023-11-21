@@ -296,7 +296,7 @@ impl Default for Hand {
 impl fmt::Display for Hand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for card in self.cards.iter() {
-            write!(f, "{}", card);
+            let _ = write!(f, "{}", card);
         }
         write!(f, "")
     }

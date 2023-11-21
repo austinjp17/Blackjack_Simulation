@@ -28,11 +28,10 @@ mod tests {
             None => Arc::new(Box::new(constant_bet))
         };
 
-        // let counting_strat = match counting_strat {
-        //     Some(strat) => strat,
-        //     None => Arc::new(Box::new(update_hi_lo as fn(&Card) -> i8)),
-            
-        // };
+        let counting_strat: Arc<CountFunc> = match counting_strat {
+            Some(strat) => strat,
+            None => Arc::new(Box::new(update_hi_lo)),
+        };
         
         let mut rng = ChaCha8Rng::seed_from_u64(2);
         let mut deck = MultiDeck::new(6, false);
@@ -48,7 +47,7 @@ mod tests {
             dealer_strat,
             player_strat,
             player_betting_strat,
-            counting_strat: Arc::new(Box::new(update_hi_lo)),
+            counting_strat,
             consider_insurance: false,
             echo: true,
             rng,
@@ -128,7 +127,7 @@ mod tests {
             rng,
         };
 
-        let mut bj = Game::from_settings(Arc::new(settings));
+        let bj = Game::from_settings(Arc::new(settings));
 
         assert!(bj.played_cards.is_empty());
         assert!(bj.dealer.hand.is_none());
@@ -249,7 +248,7 @@ mod tests {
 
         let expected_decision = PlayerDecision::Split;
 
-        let game = test_decision(dealer_hand, player_hands, expected_decision);
+        let _ = test_decision(dealer_hand, player_hands, expected_decision);
 
         // Eights
         let dealer_cards = vec![
@@ -402,7 +401,6 @@ mod tests {
 
     #[test]
     fn test_player_natural() {
-        let rng: ThreadRng = thread_rng();
         let dealer_cards = vec![
             Card {
                 rank: Rank::Six,
@@ -433,8 +431,8 @@ mod tests {
 
         let player_hands = vec![Hand::from_cards(player_cards, 1, false, false, false)];
 
-        let mut rng = ChaCha8Rng::seed_from_u64(2);
-        let mut deck = MultiDeck::new(6, false);
+        let rng = ChaCha8Rng::seed_from_u64(2);
+        let deck = MultiDeck::new(6, false);
         // deck.shuffle(&mut rng);
 
         // Set Game Settings
@@ -566,8 +564,12 @@ mod tests {
         assert_eq!(bet, expected_bet);
         
     }
+    
 
-    // --- CARD COUNTING TESTS ---
+    
+    // |-------------------------|
+    // |   CARD COUNTING TESTS   |
+    // |-------------------------|
 
     #[test]
     fn test_hi_lo_count() {
