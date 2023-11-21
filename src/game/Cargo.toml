@@ -6,3 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ctrlc = "3.4.1"
+indicatif = "0.17.7"
+
+
+
+rand = "0.8.5"
+
+
+

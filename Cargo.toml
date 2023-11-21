@@ -9,8 +9,10 @@ name = "blackjack_sim"
 path = "src/main.rs"
 
 [workspace]
-members = ["src/deck", "src/game"]
+members = ["src/game"]
 
 [dependencies]
-deck = { path = "src/deck" }
+game = { path = "src/game" }
+
 rand = "0.8.5"
+rand_chacha = "0.3.1"
