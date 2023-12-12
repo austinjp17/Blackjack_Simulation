@@ -301,10 +301,11 @@ impl <R: Rng + Clone> Game <R> {
         }
     }
 
-    pub fn surrender(&mut self, target_hand: &Hand) {
+    pub fn surrender(&mut self, target_hand: &Hand, state: HandState) {
         for hand in self.player.hands.iter_mut() {
             if target_hand == hand {
-                hand.set_state(HandState::Finished);
+                hand.set_state(state);
+                break;
             }
         }
     }

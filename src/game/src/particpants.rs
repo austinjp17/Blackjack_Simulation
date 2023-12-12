@@ -2,7 +2,7 @@
 use std::sync::Arc;
 
 use crate::betting_strategy::BettingFunc;
-use crate::playing_strategy::{PlayerDecision, PlayingStrat, CountFunc};
+use crate::playing_strategy::{PlayerDecision, PlayingStrat, CountFunc, InsuranceFunc};
 
 use crate::{deck::{Hand, HandState}, GameState};
 
@@ -17,26 +17,26 @@ pub struct Player {
     pub playing_strat: Arc<PlayingStrat>,
     pub betting_strat: Arc<BettingFunc>,
     pub counting_strat: Arc<CountFunc>,
-    pub consider_insurance: bool,
+    pub insurance_strat: Arc<InsuranceFunc>,
 } 
 
 impl Player {
     pub fn new(init_bet: u32, playing_strat: Arc<PlayingStrat>, 
         betting_strat: Arc<BettingFunc>, counting_strat: Arc<CountFunc>,
-        consider_insurance: bool,
+        insurance_strat: Arc<InsuranceFunc>,
     ) -> Self { 
         Player { 
             hands: vec![Hand::new(init_bet)], 
             playing_strat,
             betting_strat,
             counting_strat,
-            consider_insurance,
+            insurance_strat,
         } 
     }
 
-    pub fn decide_bet(&self, game_state: GameState) -> u32 {
-        (self.betting_strat)(game_state)
-    }
+    pub fn decide_bet(&self, game_state: GameState) -> u32 { (self.betting_strat)(game_state) }
+
+    pub fn decide_insurance(&self, game_state: GameState) -> bool { (self.insurance_strat)(game_state) }
 
     pub fn decide_play(&self, game_state: GameState) -> PlayerDecision {
         match &*self.playing_strat {

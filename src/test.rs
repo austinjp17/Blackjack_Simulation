@@ -5,13 +5,19 @@ use crate::*;
 
 #[cfg(test)]
 mod tests {
-    use game::{playing_strategy::{PlayerDecision, update_knock_out, omega_2, StrategyFunc, CountFunc}, Winner, deck::HandState, betting_strategy::{BettingFunc, self}};
+    use game::{playing_strategy::{PlayerDecision, update_knock_out, omega_2, StrategyFunc, CountFunc, InsuranceFunc, card_counter_insurance}, Winner, deck::HandState, betting_strategy::{BettingFunc, self}};
 
     use super::*;
     
 
     // Test Helpers
-    fn standard_game (player_strat: Option<Arc<PlayingStrat>>, dealer_strategy: Option<Arc<PlayingStrat>>, betting_strat: Option<Arc<BettingFunc>>, counting_strat: Option<Arc<CountFunc>>) -> Game<ChaCha8Rng> {
+    fn standard_game (
+        player_strat: Option<Arc<PlayingStrat>>, 
+        dealer_strategy: Option<Arc<PlayingStrat>>, 
+        betting_strat: Option<Arc<BettingFunc>>, 
+        counting_strat: Option<Arc<CountFunc>>,
+        insurance_strat: Option<Arc<InsuranceFunc>>,
+    ) -> Game<ChaCha8Rng> {
 
         let player_strat = match player_strat {
             Some(strat) => strat,
@@ -20,10 +26,10 @@ mod tests {
 
         let dealer_strat: Arc<PlayingStrat> = match dealer_strategy {
             Some(strat) => strat,
-            None => Arc::new(PlayingStrat::Dealer(Box::new(dealer_strat)))
+            None => Arc::new(PlayingStrat::Dealer(Box::new(dealer_hard_17)))
         };
 
-        let player_betting_strat: Arc<BettingFunc> = match betting_strat {
+        let betting_strat: Arc<BettingFunc> = match betting_strat {
             Some(strat) => strat,
             None => Arc::new(Box::new(constant_bet))
         };
@@ -31,6 +37,11 @@ mod tests {
         let counting_strat: Arc<CountFunc> = match counting_strat {
             Some(strat) => strat,
             None => Arc::new(Box::new(update_hi_lo)),
+        };
+
+        let insurance_strat: Arc<InsuranceFunc> = match insurance_strat {
+            Some(strat) => strat,
+            None => Arc::new(Box::new(no_insurance)),
         };
         
         let mut rng = ChaCha8Rng::seed_from_u64(2);
@@ -46,10 +57,12 @@ mod tests {
             dealer_cutoff: 17,
             dealer_strat,
             player_strat,
-            player_betting_strat,
+            betting_strat,
             counting_strat,
-            consider_insurance: false,
-            echo: true,
+            insurance_strat,
+            allow_early_surrender: false,
+            allow_late_surrender: false,    
+            echo: false,
             rng,
         };
 
@@ -79,12 +92,14 @@ mod tests {
             contains_blank: true,
             init_bet: 10,
             dealer_cutoff: 17,
-            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_strat))),
+            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_hard_17))),
             player_strat: Arc::new(PlayingStrat::Player(Box::new(basic_strategy))),
-            player_betting_strat: Arc::new(Box::new(constant_bet)),
+            betting_strat: Arc::new(Box::new(constant_bet)),
             counting_strat: Arc::new(Box::new(update_hi_lo)),
-            consider_insurance: false,
-            echo: true,
+            insurance_strat: Arc::new(Box::new(no_insurance)),
+            allow_early_surrender: false,
+            allow_late_surrender: false,
+            echo: false,
             rng,
         };
 
@@ -104,7 +119,11 @@ mod tests {
     }
 
 
-    // TESTS
+
+// |-------------------------|
+// |     Game Setup Tests    |
+// |-------------------------|
+
     #[test]
     fn game_creation() {
         let mut rng = ChaCha8Rng::seed_from_u64(2);
@@ -115,14 +134,16 @@ mod tests {
         let settings = GameSettings {
             deck,
             max_splits: 3,
-            contains_blank: true,
+            contains_blank: false,
             init_bet: 10,
             dealer_cutoff: 17,
-            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_strat))),
+            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_hard_17))),
             player_strat: Arc::new(PlayingStrat::Player(Box::new(basic_strategy))),
-            player_betting_strat: Arc::new(Box::new(constant_bet)),
+            betting_strat: Arc::new(Box::new(constant_bet)),
             counting_strat: Arc::new(Box::new(update_hi_lo)),
-            consider_insurance: false,
+            insurance_strat: Arc::new(Box::new(no_insurance)),
+            allow_early_surrender: false,
+            allow_late_surrender: false,
             echo: false,
             rng,
         };
@@ -134,6 +155,9 @@ mod tests {
         assert!(bj.player.hands.is_empty());
     }
     
+    /// Ensures correct dealing of cards
+    /// - Player given one hand w/ two cards
+    /// - Dealer given hand w/ two cards
     #[test]
     fn deal() {
         let mut rng = ChaCha8Rng::seed_from_u64(2);
@@ -147,11 +171,13 @@ mod tests {
             contains_blank: true,
             init_bet: 10,
             dealer_cutoff: 17,
-            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_strat))),
+            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_hard_17))),
             player_strat: Arc::new(PlayingStrat::Player(Box::new(basic_strategy))),
-            player_betting_strat: Arc::new(Box::new(constant_bet)),
+            betting_strat: Arc::new(Box::new(constant_bet)),
             counting_strat: Arc::new(Box::new(update_hi_lo)),
-            consider_insurance: false,
+            insurance_strat: Arc::new(Box::new(no_insurance)),
+            allow_early_surrender: false,
+            allow_late_surrender: false,
             echo: false,
             rng,
         };
@@ -162,6 +188,7 @@ mod tests {
         bj.deal(bet);
 
         assert!(bj.dealer.hand.is_some());
+        assert!(bj.get_dealer_upcard().is_some());
 
         let dealer_cards = bj.dealer.hand.expect("").cards.len();
         let num_player_hands = bj.player.hands.len();
@@ -172,8 +199,41 @@ mod tests {
         assert_eq!(num_player_hands, 1);
         assert_eq!(num_player_cards, 2);
 
+
     }
     
+    #[test]
+    fn test_blank() {
+
+        let mut rng = ChaCha8Rng::seed_from_u64(2);
+        let mut deck = MultiDeck::new(6, false);
+        deck.shuffle(&mut rng);
+
+        // Set Game Settings
+        let settings = GameSettings {
+            deck,
+            max_splits: 3,
+            contains_blank: true,
+            init_bet: 10,
+            dealer_cutoff: 17,
+            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_hard_17))),
+            player_strat: Arc::new(PlayingStrat::Player(Box::new(basic_strategy))),
+            betting_strat: Arc::new(Box::new(constant_bet)),
+            counting_strat: Arc::new(Box::new(update_hi_lo)),
+            insurance_strat: Arc::new(Box::new(no_insurance)),
+            allow_early_surrender: false,
+            allow_late_surrender: false,
+            echo: false,
+            rng,
+        };
+
+        let mut test_pool = GamePool::new(Arc::new(settings));
+
+        test_pool.simulate(100);
+
+
+    }
+
     #[test]
     fn run_hand() {
         // Seeded Rng
@@ -188,11 +248,13 @@ mod tests {
             contains_blank: true,
             init_bet: 10,
             dealer_cutoff: 17,
-            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_strat))),
+            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_hard_17))),
             player_strat: Arc::new(PlayingStrat::Player(Box::new(basic_strategy))),
-            player_betting_strat: Arc::new(Box::new(constant_bet)),
+            betting_strat: Arc::new(Box::new(constant_bet)),
             counting_strat: Arc::new(Box::new(update_hi_lo)),
-            consider_insurance: false,
+            insurance_strat: Arc::new(Box::new(no_insurance)),
+            allow_early_surrender: false,
+            allow_late_surrender: false,
             echo: false,
             rng,
         };
@@ -212,6 +274,13 @@ mod tests {
         println!("Winner: {:?}", res);
     }
 
+
+
+// |-------------------------|
+// |      Decision Tests     |
+// |-------------------------|
+
+    /// Tests player split on pairs of Aces and Eights
     #[test]
     fn test_split()  {
 
@@ -326,28 +395,13 @@ mod tests {
         // Expected Outcome
         let expected_decision = PlayerDecision::Double;
 
-        // Create Deck
-        let mut rng = ChaCha8Rng::seed_from_u64(2);
-        let mut deck = MultiDeck::new(6, false);
-        deck.shuffle(&mut rng);
-
-        // Set Game Settings
-        let settings = GameSettings {
-            deck,
-            max_splits: 3,
-            contains_blank: true,
-            init_bet: 10,
-            dealer_cutoff: 17,
-            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_strat))),
-            player_strat: Arc::new(PlayingStrat::Player(Box::new(basic_strategy))),
-            player_betting_strat: Arc::new(Box::new(constant_bet)),
-            counting_strat: Arc::new(Box::new(update_hi_lo)),
-            consider_insurance: false,
-            echo: true,
-            rng,
-        };
+        
+        let dealer_strat = Some(Arc::new(PlayingStrat::Dealer(Box::new(dealer_hard_17))));
+        let player_strat=  Some(Arc::new(PlayingStrat::Player(Box::new(basic_strategy))));
+        let betting_strat: Option<Arc<BettingFunc>> = Some(Arc::new(Box::new(constant_bet)));
+            
         // Create Game
-        let mut test_game = Game::from_settings(Arc::new(settings));
+        let mut test_game = standard_game(player_strat, dealer_strat, betting_strat, None, None);
 
         set_hands(&mut test_game, dealer_hand, player_hands.clone());
 
@@ -382,12 +436,14 @@ mod tests {
             contains_blank: true,
             init_bet: 10,
             dealer_cutoff: 17,
-            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_strat))),
+            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_hard_17))),
             player_strat: Arc::new(PlayingStrat::Player(Box::new(basic_strategy))),
-            player_betting_strat: Arc::new(Box::new(constant_bet)),
+            betting_strat: Arc::new(Box::new(constant_bet)),
             counting_strat: Arc::new(Box::new(update_hi_lo)),
-            consider_insurance: false,
-            echo: true,
+            insurance_strat: Arc::new(Box::new(no_insurance)),
+            allow_early_surrender: false,
+            allow_late_surrender: false,
+            echo: false,
             rng,
         };
 
@@ -399,8 +455,19 @@ mod tests {
 
     }
 
+
+// |-------------------------|
+// |     Game Result Tests   |
+// |-------------------------|
+
     #[test]
-    fn test_player_natural() {
+    /// Tests all 3 states of natural blackjack outcomes
+    /// 1 - Player Only => Player
+    /// 2 - Dealer Only => Dealer
+    /// 3 - Both => Tie
+    fn test_naturals() {
+        // --- Player Natural ---
+        // Ace & Six
         let dealer_cards = vec![
             Card {
                 rank: Rank::Six,
@@ -408,12 +475,13 @@ mod tests {
                 soft: true,
             },
             Card {
-                rank: Rank::Five,
+                rank: Rank::Ace,
                 suit: Suit::Spades,
                 soft: true,
             },
         ];
-
+        
+        // Ace & King
         let player_cards = vec![
             Card {
                 rank: Rank::Ace,
@@ -442,12 +510,14 @@ mod tests {
             contains_blank: true,
             init_bet: 10,
             dealer_cutoff: 17,
-            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_strat))),
+            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_hard_17))),
             player_strat: Arc::new(PlayingStrat::Player(Box::new(basic_strategy))),
-            player_betting_strat: Arc::new(Box::new(constant_bet)),
+            betting_strat: Arc::new(Box::new(constant_bet)),
             counting_strat: Arc::new(Box::new(update_hi_lo)),
-            consider_insurance: false,
-            echo: true,
+            insurance_strat: Arc::new(Box::new(no_insurance)),
+            allow_early_surrender: false,
+            allow_late_surrender: false,
+            echo: false,
             rng,
         };
 
@@ -455,42 +525,112 @@ mod tests {
 
         set_hands(&mut test_game, dealer_hand, player_hands);
 
-        test_game.play_hand();
+        
+        let player_natural_outcome = test_game.play_hand();
+        let state = player_natural_outcome.first().unwrap().1.clone();
+        let expected_winner = Winner::Player;
+        let real_winner = player_natural_outcome.first().unwrap().0.clone();
+        assert_eq!(expected_winner, real_winner);
+        assert!(state.p_natural);
+        assert!(!state.d_natural);
 
+        // --- Dealer Natural ---
+        test_game.reset_hands();
+
+        // Ace & Jack
+        let dealer_cards = vec![
+            Card {
+                rank: Rank::Jack,
+                suit: Suit::Hearts,
+                soft: true,
+            },
+            Card {
+                rank: Rank::Ace,
+                suit: Suit::Spades,
+                soft: true,
+            },
+        ];
+        
+        // Ace & Six
+        let player_cards = vec![
+            Card {
+                rank: Rank::Ace,
+                suit: Suit::Hearts,
+                soft: true,
+            },
+            Card {
+                rank: Rank::Six,
+                suit: Suit::Spades,
+                soft: true,
+            },
+        ];
+
+        let dealer_hand = Hand::from_cards(dealer_cards, 10, false, false, false);
+
+        let player_hands = vec![Hand::from_cards(player_cards, 1, false, false, false)];
+
+        set_hands(&mut test_game, dealer_hand, player_hands);
+        let player_natural_outcome = test_game.play_hand();
+        let state = player_natural_outcome.first().unwrap().1.clone();
+        let expected_winner = Winner::Dealer;
+        let real_winner = player_natural_outcome.first().unwrap().0.clone();
+        assert_eq!(expected_winner, real_winner);
+        assert!(state.d_natural);
+        assert!(!state.p_natural);
+
+        // Both Naturals
+        test_game.reset_hands();
+
+        // Ace & Jack
+        let dealer_cards = vec![
+            Card {
+                rank: Rank::Jack,
+                suit: Suit::Hearts,
+                soft: true,
+            },
+            Card {
+                rank: Rank::Ace,
+                suit: Suit::Spades,
+                soft: true,
+            },
+        ];
+        
+        // Ace & Six
+        let player_cards = vec![
+            Card {
+                rank: Rank::Ace,
+                suit: Suit::Hearts,
+                soft: true,
+            },
+            Card {
+                rank: Rank::King,
+                suit: Suit::Spades,
+                soft: true,
+            },
+        ];
+
+        let dealer_hand = Hand::from_cards(dealer_cards, 10, false, false, false);
+
+        let player_hands = vec![Hand::from_cards(player_cards, 1, false, false, false)];
+
+        set_hands(&mut test_game, dealer_hand, player_hands);
+        let player_natural_outcome = test_game.play_hand();
+        let state = player_natural_outcome.first().unwrap().1.clone();
+        let expected_winner = Winner::Tie;
+        let real_winner = player_natural_outcome.first().unwrap().0.clone();
+        assert_eq!(expected_winner, real_winner);
+        assert!(state.d_natural);
+        assert!(state.p_natural);
 
     }
 
+
+// |-------------------------|
+// |   Betting Strat Tests   |
+// |-------------------------|
+    
     #[test]
-    fn test_blank() {
-
-        let mut rng = ChaCha8Rng::seed_from_u64(2);
-        let mut deck = MultiDeck::new(6, false);
-        deck.shuffle(&mut rng);
-
-        // Set Game Settings
-        let settings = GameSettings {
-            deck,
-            max_splits: 3,
-            contains_blank: true,
-            init_bet: 10,
-            dealer_cutoff: 17,
-            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_strat))),
-            player_strat: Arc::new(PlayingStrat::Player(Box::new(basic_strategy))),
-            player_betting_strat: Arc::new(Box::new(constant_bet)),
-            counting_strat: Arc::new(Box::new(update_hi_lo)),
-            consider_insurance: false,
-            echo: true,
-            rng,
-        };
-
-        let mut test_pool = GamePool::new(Arc::new(settings));
-
-        test_pool.simulate(10);
-
-
-    }
-
-    #[test]
+    /// Ensures correct betting given martingale strat
     fn test_martingale() {
 
         let mut rng = ChaCha8Rng::seed_from_u64(2);
@@ -504,12 +644,14 @@ mod tests {
             contains_blank: true,
             init_bet: 10,
             dealer_cutoff: 17,
-            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_strat))),
+            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_hard_17))),
             player_strat: Arc::new(PlayingStrat::Player(Box::new(basic_strategy))),
-            player_betting_strat: Arc::new(Box::new(martingale)),
+            betting_strat: Arc::new(Box::new(martingale)),
             counting_strat: Arc::new(Box::new(update_hi_lo)),
-            consider_insurance: false,
-            echo: true,
+            insurance_strat: Arc::new(Box::new(no_insurance)),
+            allow_early_surrender: false,
+            allow_late_surrender: false,
+            echo: false,
             rng,
         };
         let settings = Arc::new(settings);
@@ -558,18 +700,39 @@ mod tests {
         assert_eq!(test_game.last_bet, settings.clone().init_bet);
         
         let state = test_game.get_state(&player_hands[0]);
-        let bet = (settings.clone().player_betting_strat)(state);
+        let bet = (settings.clone().betting_strat)(state);
 
         let expected_bet = settings.init_bet * 2;
         assert_eq!(bet, expected_bet);
         
     }
     
+// |-------------------------|
+// |  Insurance Strat Tests  |
+// |-------------------------|
 
-    
-    // |-------------------------|
-    // |   CARD COUNTING TESTS   |
-    // |-------------------------|
+    #[test]
+    fn test_no_insurance() {
+        let insurance_strat:Option<Arc<InsuranceFunc>> = Some(Arc::new(Box::new(no_insurance)));
+        let game = standard_game(None, None, None, None, insurance_strat);
+        let decision = game.player.decide_insurance(game.get_state(&Hand::new(10)));
+        let expected_decision = false;
+        assert_eq!(expected_decision, decision);
+    }
+
+    fn test() {
+        let insurance_strat:Option<Arc<InsuranceFunc>> = Some(Arc::new(Box::new(card_counter_insurance)));
+        let game = standard_game(None, None, None, None, insurance_strat);
+        let decision = game.player.decide_insurance(game.get_state(&Hand::new(10)));
+        let expected_decision = false;
+        assert_eq!(expected_decision, decision);
+    }
+
+
+
+// |-------------------------|
+// |   Card Counting Tests   |
+// |-------------------------|
 
     #[test]
     fn test_hi_lo_count() {
@@ -586,12 +749,14 @@ mod tests {
             contains_blank: true,
             init_bet: 10,
             dealer_cutoff: 17,
-            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_strat))),
+            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_hard_17))),
             player_strat: Arc::new(PlayingStrat::Player(Box::new(basic_strategy))),
-            player_betting_strat: Arc::new(Box::new(constant_bet)),
+            betting_strat: Arc::new(Box::new(constant_bet)),
             counting_strat: Arc::new(Box::new(update_hi_lo)),
-            consider_insurance: false,
-            echo: true,
+            insurance_strat: Arc::new(Box::new(no_insurance)),
+            allow_early_surrender: false,
+            allow_late_surrender: false,
+            echo: false,
             rng,
         };
         let settings = Arc::new(settings);
@@ -680,12 +845,14 @@ mod tests {
             contains_blank: true,
             init_bet: 10,
             dealer_cutoff: 17,
-            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_strat))),
+            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_hard_17))),
             player_strat: Arc::new(PlayingStrat::Player(Box::new(basic_strategy))),
-            player_betting_strat: Arc::new(Box::new(constant_bet)),
+            betting_strat: Arc::new(Box::new(constant_bet)),
             counting_strat: Arc::new(Box::new(update_knock_out)),
-            consider_insurance: false,
-            echo: true,
+            insurance_strat: Arc::new(Box::new(no_insurance)),
+            allow_early_surrender: false,
+            allow_late_surrender: false,
+            echo: false,
             rng,
         };
         let settings = Arc::new(settings);
@@ -803,12 +970,14 @@ mod tests {
             contains_blank: true,
             init_bet: 10,
             dealer_cutoff: 17,
-            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_strat))),
+            dealer_strat: Arc::new(PlayingStrat::Dealer(Box::new(dealer_hard_17))),
             player_strat: Arc::new(PlayingStrat::Player(Box::new(basic_strategy))),
-            player_betting_strat: Arc::new(Box::new(constant_bet)),
+            betting_strat: Arc::new(Box::new(constant_bet)),
             counting_strat: Arc::new(Box::new(omega_2)),
-            consider_insurance: false,
-            echo: true,
+            insurance_strat: Arc::new(Box::new(no_insurance)),
+            allow_early_surrender: false,
+            allow_late_surrender: false,
+            echo: false,
             rng,
         };
         let settings = Arc::new(settings);
@@ -942,4 +1111,5 @@ mod tests {
         assert_eq!(expected_true, test_game.true_count);
 
     }
+
 }

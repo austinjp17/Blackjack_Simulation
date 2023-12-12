@@ -1,0 +1,12 @@
+
+ -- Simulation Results --
+
+n = 10,243,269
+Player Wins: 4,430,870 | 43.256405743127516%
+Dealer Wins: 4,901,750 | 47.853375714334945%
+Ties: 910,649 | 8.890218542537545%
+Player Payoff: $-31,273,950
+Player Payoff/Game: $-3.0531220062657733
+Player Stats
+ - Percent Bust: 17.54755%
+ - Percent Bust|Loss: 35.7985413372775%

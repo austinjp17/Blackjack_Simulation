@@ -2,7 +2,7 @@
 use std::sync::Arc;
 
 use betting_strategy::BettingFunc;
-use playing_strategy::CountFunc;
+use playing_strategy::{CountFunc, InsuranceFunc};
 use rand::Rng;
 
 pub mod playing_strategy;
@@ -27,6 +27,8 @@ pub struct EndState {
     pub p_insurance: bool,
     pub p_doubled: bool,
     pub p_bust: bool,
+    pub p_surrender_early: bool,
+    pub p_surrender_late: bool,
     pub d_natural: bool,
     pub d_bust: bool,
 }
@@ -35,7 +37,7 @@ impl Default for EndState {
     fn default() -> Self {
         EndState { 
             hand_bet: u32::MAX, magnitude_bet_inc: 0,
-            p_natural: false, p_insurance: false, p_doubled: false, p_bust: false, 
+            p_natural: false, p_insurance: false, p_doubled: false, p_bust: false, p_surrender_early: false, p_surrender_late: false,
             d_natural: false, d_bust: false }
     }
 }
@@ -62,6 +64,10 @@ pub struct Game<R: Rng> {
     pub rng: R,
     pub echo: bool,
 
+    // Surrender Rules
+    pub allow_early_surrender: bool,
+    pub allow_late_surrender: bool,
+
     // Counting
     pub running_count: i32,
     pub true_count: f64,
@@ -75,7 +81,11 @@ impl <R: Rng + Clone> Game <R> {
         dealer: Dealer,
         player: Player,
         rng: R,
+        allow_early_surrender: bool,
+        allow_late_surrender: bool,
         echo: bool,
+        
+        
     ) -> Self {
         Game { 
             deck: deck.clone(),
@@ -88,18 +98,21 @@ impl <R: Rng + Clone> Game <R> {
             last_winner: Winner::None,
             rng,
             echo,
+            allow_early_surrender,
+            allow_late_surrender,
             running_count: 0,
             true_count: 0.0,
+            
         }
     }
 
     pub fn from_settings(value: Arc<GameSettings<R>>) -> Self {
         let player = Player {
             playing_strat: value.player_strat.clone(),
-            betting_strat: value.player_betting_strat.clone(),
+            betting_strat: value.betting_strat.clone(),
             counting_strat: value.counting_strat.clone(),
+            insurance_strat: value.insurance_strat.clone(),
             hands: vec![],
-            consider_insurance: value.consider_insurance,
         };
         let dealer = Dealer {
             strategy: value.dealer_strat.clone(),
@@ -107,19 +120,19 @@ impl <R: Rng + Clone> Game <R> {
             cutoff: value.dealer_cutoff,
         };
 
-        Game::new(value.deck.clone(), value.max_splits, value.init_bet, dealer, player, value.rng.clone(), value.echo)
+        Game::new(value.deck.clone(), value.max_splits, value.init_bet, dealer, player, value.rng.clone(),value.allow_early_surrender, value.allow_late_surrender, value.echo)
     }
     
     // Assumes dealer has been dealth
     // Empty hand not handled
-    fn get_dealer_upcard(&self) -> Option<Card> { 
+    pub fn get_dealer_upcard(&self) -> Option<Card> { 
         if let Some(hand) = self.dealer.hand.as_ref() {
             return hand.cards.first().copied();
         }
         None
     }
 
-    fn get_dealer_upcard_str(&self) -> Option<DealerUpcardStrength> {
+    pub fn get_dealer_upcard_str(&self) -> Option<DealerUpcardStrength> {
         if let Some(card) = self.get_dealer_upcard() {
             return Some(card.get_dealer_str());
         }
@@ -140,6 +153,8 @@ impl <R: Rng + Clone> Game <R> {
             dealer_cutoff: self.dealer.cutoff,
             contains_blank: self.deck.contains_blank,
             last_winner: self.last_winner.clone(),
+            allow_early_surrender: self.allow_early_surrender,
+            allow_late_surrender: self.allow_late_surrender, 
             running_count: self.running_count,
             true_count: self.true_count,
         }
@@ -160,6 +175,10 @@ pub struct GameState {
     dealer_cutoff: u8,
     contains_blank: bool,
     last_winner: Winner,
+    // Surrenders Allowed
+    allow_early_surrender: bool,
+    allow_late_surrender: bool,
+    
 
     // Card Counting
     running_count: i32,
@@ -170,7 +189,10 @@ pub struct GameState {
 
 impl GameState {
     pub fn new(init_bet: u32, played_cards: Vec<Card>, dealer_upcard: Option<Card>, dealer_upcard_str: Option<DealerUpcardStrength>, 
-        player_hand: Hand, dealer_hand: Option<Hand>, dealer_cutoff: u8, contains_blank: bool, last_winner: Winner, running_count: i32, true_count: f64) -> Self {
+        player_hand: Hand, dealer_hand: Option<Hand>, dealer_cutoff: u8, 
+        contains_blank: bool, last_winner: Winner, running_count: i32, true_count: f64, allow_early_surrender:bool,
+        allow_late_surrender: bool
+    ) -> Self {
         GameState {
             init_bet,
             last_bet: 0,
@@ -182,6 +204,8 @@ impl GameState {
             dealer_cutoff,
             contains_blank,
             last_winner,
+            allow_early_surrender,
+            allow_late_surrender,
             running_count,
             true_count,
 
@@ -197,11 +221,13 @@ pub struct  GameSettings <R: Rng> {
     pub dealer_cutoff: u8,
     pub dealer_strat: Arc<PlayingStrat>,
     pub player_strat: Arc<PlayingStrat>,
-    pub player_betting_strat: Arc<BettingFunc>,
+    pub betting_strat: Arc<BettingFunc>,
     pub counting_strat: Arc<CountFunc>,
-    pub consider_insurance: bool,
+    pub insurance_strat: Arc<InsuranceFunc>,
+    pub allow_early_surrender: bool,
+    pub allow_late_surrender: bool,
     pub rng: R,
-    pub echo: bool
+    pub echo: bool,
 }
 
 

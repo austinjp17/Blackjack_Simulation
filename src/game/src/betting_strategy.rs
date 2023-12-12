@@ -19,5 +19,6 @@ pub fn martingale(state: GameState) -> u32 {
 
 }
 
-
+// percent
+pub fn kelly_criterion(state: GameState) -> u32 { state.init_bet }
 

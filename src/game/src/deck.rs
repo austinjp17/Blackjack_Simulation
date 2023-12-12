@@ -266,7 +266,8 @@ impl MultiDeck {
 pub enum HandState {
     Init,        // Not dealt cards yet
     Playing,     // Active player
-    Surrendered, // Forfeit: Half bet returned
+    EarlySurrender, // Forfeit: Half bet returned
+    LateSurrender,
     Finished,    // Standing player
 }
 
@@ -367,13 +368,12 @@ impl Hand {
         self.cards.iter().map(|card| card.value()).sum()
     }
 
-    pub fn set_state(&mut self, new_state: HandState) {
-        self.state = new_state
-    }
+    pub fn set_state(&mut self, new_state: HandState) { self.state = new_state }
 
-    pub fn is_finished(&self) -> bool {
-        self.state == HandState::Finished
-    }
+    pub fn is_surrendered(&self) -> bool 
+    { self.state == HandState::EarlySurrender || self.state == HandState::LateSurrender }
+
+    pub fn is_finished(&self) -> bool { self.state == HandState::Finished || self.is_surrendered() }
 }
 
 /// TEST

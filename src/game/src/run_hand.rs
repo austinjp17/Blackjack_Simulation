@@ -19,8 +19,8 @@ impl<R: Rng + Clone> Game<R> {
             }
 
             // Check for Dealer Ace if insurance
-            if upcard.rank == Rank::Ace && self.player.consider_insurance {
-
+            if upcard.rank == Rank::Ace {
+                self.player.decide_insurance(self.get_state(hand));
             }
 
             // Player hand response
@@ -37,7 +37,8 @@ impl<R: Rng + Clone> Game<R> {
                 PlayerDecision::Hit => self.hit_player(hand),
                 PlayerDecision::Split => self.split_hand(hand),
                 PlayerDecision::Double => self.double_hand(hand),
-                PlayerDecision::Surrender => self.surrender(hand),
+                PlayerDecision::EarlySurrender => self.surrender(hand, HandState::EarlySurrender),
+                PlayerDecision::LateSurrender => self.surrender(hand, HandState::LateSurrender)
             }
         }
     }
@@ -73,14 +74,7 @@ impl<R: Rng + Clone> Game<R> {
             }
 
             // Check for Natural on first iteration
-            if self
-                .dealer
-                .hand
-                .as_ref()
-                .expect("No Dealer Cards")
-                .cards
-                .len()
-                == 2
+            if self.dealer.hand.as_ref().expect("No Dealer Cards").cards.len() == 2
                 && !self.dealer.hand.as_ref().expect("").split_child
                 && self.dealer.hand.as_ref().expect("").value() == 21
             {
@@ -118,6 +112,7 @@ impl<R: Rng + Clone> Game<R> {
             .map(|player_hand| {
                 // Var initialization
                 let mut winner: Option<Winner> = None;
+                
                 let mut end_state = EndState::default();
 
                 let dealer_hand = self.dealer.hand.as_ref().expect("");
@@ -125,24 +120,35 @@ impl<R: Rng + Clone> Game<R> {
                 // Assign State flag
                 end_state.hand_bet = self.last_bet;
 
+                // Player Double
                 if player_hand.doubled {
                     end_state.p_doubled = true
                 }
-
+                // Player Natural (Winner undetermined)
                 if player_hand.natural {
                     end_state.p_natural = true
+                }
+
+                // Player Surrender
+                // First winner assignment
+                if player_hand.is_surrendered(){
+                    match player_hand.state {
+                        HandState::EarlySurrender => end_state.p_surrender_early = true,
+                        HandState::LateSurrender => end_state.p_surrender_late = true,
+                        _ => {assert!(1==2)} // Unreached by line 131 condition
+                    }
+                    winner = Some(Winner::Dealer);
                 }
 
                 // Dealer Natural
                 if dealer_hand.natural {
                     end_state.d_natural = true;
                     // Dealer wins w/ natural if player doesn't have
-                    if !player_hand.natural {
-                        winner = Some(Winner::Dealer);
+                    if !player_hand.natural
+                    && winner.is_none() {
+                        winner = Some(Winner::Dealer)
                     }
                 }
-
-                
 
                 // Bust Checks
                 // Player would bust before dealer, so check first and award dealer win even if
@@ -165,14 +171,14 @@ impl<R: Rng + Clone> Game<R> {
                 }
 
                 // Tie
-                if player_hand.value() == dealer_hand.value() {
+                if player_hand.value() == dealer_hand.value()
+                && winner.is_none() {
                     winner = Some(Winner::Tie)
                 }
                 // Player Win
-                else if player_hand.value() > dealer_hand.value() {
-                    if winner.is_none() {
-                        winner = Some(Winner::Player);
-                    }
+                else if player_hand.value() > dealer_hand.value()
+                && winner.is_none() {
+                    winner = Some(Winner::Player);
                 }
                 // Dealer Win
                 else {
@@ -185,53 +191,57 @@ impl<R: Rng + Clone> Game<R> {
             })
             .collect();
 
-        // __SET LAST WINNER__
-        let mut last_winner = Winner::None;
-
-        match hand_results.len() {
-            0 => {} // No Results (Shouldn't be reached)
-            // If no split (1 hand only)
-            1 => {
-                last_winner = hand_results.first().unwrap().0.clone();
-            }
-
-            _ => {
-                // If Split (Multiple hands)
-                // Whoever has most wins is given 'last_winner'
-                // If even wins, Tie returned
-                let mut num_player_wins: u8 = 0;
-                let mut num_dealer_wins: u8 = 0;
-                let mut num_ties: u8 = 0;
-
-                hand_results.iter().for_each(|(winner, _)| match winner {
-                    Winner::Player => {
-                        num_player_wins += 1;
-                    }
-                    Winner::Dealer => {
-                        num_dealer_wins += 1;
-                    }
-                    Winner::Tie => num_ties += 1,
-                    Winner::None => {}
-                });
-
-                // Set Last Winner
-                // Player wins majority
-                if num_player_wins > num_dealer_wins {
-                    last_winner = Winner::Player
-                }
-                // Tie
-                else if num_player_wins == num_dealer_wins {
-                    last_winner = Winner::Tie
-                }
-                // Dealer win majority
-                else {
-                    last_winner = Winner::Dealer
-                }
-            }
-        }
-
         // Assign last winner & return hand results
-        self.last_winner = last_winner;
+        self.last_winner = determine_last_winner(&hand_results);
         hand_results
     }
+
+}
+
+fn determine_last_winner(hand_results: &Vec<(Winner, EndState)>) -> Winner {
+    let mut last_winner = Winner::None;
+    // Split given to participant w/ most wins, Tie if even
+    match hand_results.len() {
+        0 => {} // No Results (Shouldn't be reached)
+        // If no split (1 hand only)
+        1 => {
+            last_winner = hand_results.first().unwrap().0.clone();
+        }
+
+        _ => {
+            // If Split (Multiple hands)
+            // Whoever has most wins is given 'last_winner'
+            // If even wins, Tie returned
+            let mut num_player_wins: u8 = 0;
+            let mut num_dealer_wins: u8 = 0;
+            let mut num_ties: u8 = 0;
+
+            hand_results.iter().for_each(|(winner, _)| match winner {
+                Winner::Player => {
+                    num_player_wins += 1;
+                }
+                Winner::Dealer => {
+                    num_dealer_wins += 1;
+                }
+                Winner::Tie => num_ties += 1,
+                Winner::None => {}
+            });
+
+            // Set Last Winner
+            // Player wins majority
+            if num_player_wins > num_dealer_wins {
+                last_winner = Winner::Player
+            }
+            // Tie
+            else if num_player_wins == num_dealer_wins {
+                last_winner = Winner::Tie
+            }
+            // Dealer win majority
+            else {
+                last_winner = Winner::Dealer
+            }
+        }
+    }
+
+    last_winner
 }
