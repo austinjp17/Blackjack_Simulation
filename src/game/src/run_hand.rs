@@ -12,6 +12,7 @@ impl<R: Rng + Clone> Game<R> {
     pub fn handle_player_hand(&mut self, hand: &Hand) {
         assert!(self.dealer.hand.is_some()); // Dealer must have hand
         let upcard = self.get_dealer_upcard().unwrap();
+        
         if !hand.is_finished() {
             // Check for Natural on first iteration
             if self.natural_check(hand) {
@@ -20,11 +21,11 @@ impl<R: Rng + Clone> Game<R> {
 
             // Check for Dealer Ace if insurance
             if upcard.rank == Rank::Ace {
-                self.player.decide_insurance(self.get_state(hand));
+                self.player.decide_insurance(self.get_state(Some(hand.clone())));
             }
 
             // Player hand response
-            let decision = self.player.decide_play(self.get_state(hand));
+            let decision = self.player.decide_play(self.get_state(Some(hand.clone())));
             if self.echo {
                 println!("\n!! New Hand !!\nBet: {}", &hand.init_bet);
                 println!("\n___PLAYER___");
@@ -50,7 +51,9 @@ impl<R: Rng + Clone> Game<R> {
         self.last_bet = self.dealer.hand.as_ref().expect("Handled").init_bet;
 
         // Player: Always First
+        // Play until player hand complete
         loop {
+            // End Condition
             if self.player.is_finished() {
                 break;
             }
@@ -73,17 +76,21 @@ impl<R: Rng + Clone> Game<R> {
                 break;
             }
 
+            assert!(self.dealer.hand.is_some());
+            // USE THIS HAND ONLY FOR CONDITIONS
+            // CHANGES NOT REFLECTED IN STRUCTURE
+            let dealer_hand = self.dealer.hand.clone().expect("Asserted");
             // Check for Natural on first iteration
-            if self.dealer.hand.as_ref().expect("No Dealer Cards").cards.len() == 2
-                && !self.dealer.hand.as_ref().expect("").split_child
-                && self.dealer.hand.as_ref().expect("").value() == 21
+            if dealer_hand.cards.len() == 2
+                && !dealer_hand.split_child
+                && dealer_hand.value() == 21
             {
                 self.dealer.hand.as_mut().expect("").natural = true;
             }
 
-            let decision = self
-                .dealer
-                .decide_play(self.get_state(self.dealer.hand.as_ref().expect("")));
+
+            let decision = self.dealer
+                .decide_play(self.get_state(Some(dealer_hand)));
 
             if self.echo {
                 println!("\nCurrent Hand: {}", self.dealer.hand.as_ref().expect(""));

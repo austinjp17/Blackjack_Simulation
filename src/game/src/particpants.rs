@@ -2,7 +2,7 @@
 use std::sync::Arc;
 
 
-use crate::playing_strategy::{StratReturn, PlayerDecision, CountFunc, StrategyFunc};
+use crate::playing_strategy::{StratReturn, PlayerDecision, StrategyFunc};
 
 use crate::{deck::{Hand, HandState}, GameState};
 
@@ -16,13 +16,13 @@ pub struct Player {
     pub hands: Vec<Hand>,
     pub playing_strat: Arc<Box<dyn StrategyFunc>>,
     pub betting_strat: Arc<Box<dyn StrategyFunc>>,
-    pub counting_strat: Arc<CountFunc>,
+    pub counting_strat: Arc<Box<dyn StrategyFunc>>,
     pub insurance_strat: Arc<Box<dyn StrategyFunc>>,
 } 
 
 impl Player {
     pub fn new(init_bet: u32, playing_strat: Arc<Box<dyn StrategyFunc>>, 
-        betting_strat: Arc<Box<dyn StrategyFunc>>, counting_strat: Arc<CountFunc>,
+        betting_strat: Arc<Box<dyn StrategyFunc>>, counting_strat: Arc<Box<dyn StrategyFunc>>,
         insurance_strat: Arc<Box<dyn StrategyFunc>>,
     ) -> Self { 
         Player { 

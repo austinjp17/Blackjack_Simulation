@@ -15,7 +15,7 @@ use game::{
     playing_strategy::{StrategyFunc, 
         BasicStrategy, SplitOnly, DoubleOnly, CutoffOnly, // Basic Strat and it's main components
         DealerPlay, NaiveSoft, MimicDealer, 
-        update_hi_lo, // Counting
+        HiLo, KnockOut, OmegaTwo, // Counting
         NoInsurance // Insurance
     },
     betting_strategy::{ConstantBet, Martingale},
@@ -25,9 +25,9 @@ use game::{
 
 const MILLION: u64 = 1000000;
 
-fn compare_strats(n: u64, strats: Vec<Box<dyn StrategyFunc>>) {
+fn compare_strats(n: u64, playing_strats: Vec<Box<dyn StrategyFunc>>) {
 
-    for strat in strats {
+    for strat in playing_strats {
         let rng = thread_rng();
         let deck = MultiDeck::new(6, true);
         let settings = Arc::new(GameSettings {
@@ -38,7 +38,7 @@ fn compare_strats(n: u64, strats: Vec<Box<dyn StrategyFunc>>) {
             dealer_strat: Arc::new(Box::new(DealerPlay)),
             player_strat: Arc::new(strat),
             betting_strat: Arc::new(Box::new(ConstantBet)),
-            counting_strat: Arc::new(Box::new(update_hi_lo)),
+            counting_strat: Arc::new(Box::new(HiLo)),
             insurance_strat: Arc::new(Box::new(NoInsurance)),
             allow_early_surrender: false,
             allow_late_surrender: false,

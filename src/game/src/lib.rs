@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 use std::sync::Arc;
 
-use playing_strategy::{CountFunc, InsuranceFunc};
 use rand::Rng;
 
 pub mod playing_strategy;
@@ -140,14 +139,14 @@ impl <R: Rng + Clone> Game <R> {
         
     }
 
-    pub fn get_state(&self, player_hand: &Hand) -> GameState {
+    pub fn get_state(&self, player_hand: Option<Hand>) -> GameState {
         GameState { 
             init_bet: self.init_bet,
             last_bet: self.last_bet,
             played_cards: self.played_cards.clone(),
             dealer_upcard: self.get_dealer_upcard(),
             dealer_upcard_str: self.get_dealer_upcard_str(),
-            player_hand: player_hand.clone(),
+            player_hand,
             dealer_hand: self.dealer.hand.clone(),
             dealer_cutoff: self.dealer.cutoff,
             contains_blank: self.deck.contains_blank,
@@ -169,7 +168,7 @@ pub struct GameState {
     played_cards: Vec<Card>, 
     dealer_upcard: Option<Card>,
     dealer_upcard_str: Option<DealerUpcardStrength>,
-    player_hand: Hand,
+    player_hand: Option<Hand>,
     dealer_hand: Option<Hand>,
     dealer_cutoff: u8,
     contains_blank: bool,
@@ -188,7 +187,7 @@ pub struct GameState {
 
 impl GameState {
     pub fn new(init_bet: u32, played_cards: Vec<Card>, dealer_upcard: Option<Card>, dealer_upcard_str: Option<DealerUpcardStrength>, 
-        player_hand: Hand, dealer_hand: Option<Hand>, dealer_cutoff: u8, 
+        player_hand: Option<Hand>, dealer_hand: Option<Hand>, dealer_cutoff: u8, 
         contains_blank: bool, last_winner: Winner, running_count: i32, true_count: f64, allow_early_surrender:bool,
         allow_late_surrender: bool
     ) -> Self {
@@ -221,7 +220,7 @@ pub struct  GameSettings <R: Rng> {
     pub dealer_strat: Arc<Box<dyn StrategyFunc>>,
     pub player_strat: Arc<Box<dyn StrategyFunc>>,
     pub betting_strat: Arc<Box<dyn StrategyFunc>>,
-    pub counting_strat: Arc<CountFunc>,
+    pub counting_strat: Arc<Box<dyn StrategyFunc>>,
     pub insurance_strat: Arc<Box<dyn StrategyFunc>>,
     pub allow_early_surrender: bool,
     pub allow_late_surrender: bool,

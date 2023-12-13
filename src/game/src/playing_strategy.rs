@@ -60,7 +60,8 @@ impl StrategyFunc for DealerPlay {
 pub struct MimicDealer;
 impl StrategyFunc for MimicDealer {
     fn get_decision(&self, state: GameState) -> StratReturn {
-        if state.player_hand.value() >= state.dealer_cutoff {
+        assert!(state.player_hand.is_some());
+        if state.player_hand.expect("asserted").value() >= state.dealer_cutoff {
             StratReturn::Play(PlayerDecision::Stand)
         } else {
             StratReturn::Play(PlayerDecision::Hit)
@@ -75,10 +76,12 @@ impl StrategyFunc for MimicDealer {
 pub struct NaiveSoft;
 impl StrategyFunc for NaiveSoft {
     fn get_decision(&self, state: GameState) -> StratReturn {
+        assert!(state.player_hand.is_some());
+        let player_hand = state.player_hand.expect("Asserted");
         // If at or above cutoff
-        if state.player_hand.value() >= state.dealer_cutoff {
+        if player_hand.value() >= state.dealer_cutoff {
             // If Soft Ace
-            if state.player_hand.contains_soft_ace() && state.player_hand.value() < 18 {
+            if player_hand.contains_soft_ace() && player_hand.value() < 18 {
                 StratReturn::Play(PlayerDecision::Hit)
             }
             // Else Stand
@@ -102,6 +105,9 @@ impl StrategyFunc for NaiveSoft {
 pub struct CutoffOnly;
 impl StrategyFunc for CutoffOnly {
     fn get_decision(&self, state: GameState) -> StratReturn {
+        assert!(state.player_hand.is_some());
+        let player_hand = state.player_hand.expect("Asserted");
+
         let dealer_upcard_str = state.dealer_upcard_str.expect("");
         let player_cutoff = match &dealer_upcard_str {
             DealerUpcardStrength::Good => 17,
@@ -109,12 +115,12 @@ impl StrategyFunc for CutoffOnly {
             DealerUpcardStrength::Poor => 12,
         };
 
-        let player_val = state.player_hand.value();
+        let player_val = player_hand.value();
         // Hit iff:
         // - If Soft Ace & hand_value above cutoff & not blackjack
         // - Or If below cutoff
         if player_val < player_cutoff || // Below Cutoff
-        state.player_hand.contains_soft_ace() &&
+        player_hand.contains_soft_ace() &&
         player_val != 21
         {
             // Not if blackjack
@@ -135,12 +141,14 @@ impl StrategyFunc for CutoffOnly {
 pub struct DoubleOnly;
 impl StrategyFunc for DoubleOnly {
     fn get_decision(&self, state: GameState) -> StratReturn {
-        let player_val = state.player_hand.value();
+        assert!(state.player_hand.is_some());
+        let player_hand = state.player_hand.clone().expect("Asserted");
+        
         let dealer_upcard = state.dealer_upcard.expect("");
         let dealer_upcard_str = state.dealer_upcard_str.expect("");
         // Double Check
-        if !state.player_hand.doubled {
-            match &player_val {
+        if !player_hand.doubled {
+            match &player_hand.value() {
                 11 => {
                     return StratReturn::Play(PlayerDecision::Double);
                 }
@@ -173,23 +181,24 @@ impl StrategyFunc for DoubleOnly {
 pub struct SplitOnly;
 impl StrategyFunc for SplitOnly {
     fn get_decision(&self, state: GameState) -> StratReturn {
-        let player_val = state.player_hand.value();
+        assert!(state.player_hand.is_some());
+        let player_hand = state.player_hand.clone().expect("Asserted");
+
+        
         let dealer_upcard = state.dealer_upcard.expect("");
         let dealer_upcard_str = state.dealer_upcard_str.expect("");
 
-        if state.player_hand.contains_pair() {
+        if player_hand.contains_pair() {
             // Split 8's and Aces
-            if state.player_hand
+            if player_hand
                 .contains_pair_of(Card::from_rank(Rank::Eight))
-                || state
-                    .player_hand
-                    .contains_pair_of(Card::from_rank(Rank::Ace))
+                || player_hand.contains_pair_of(Card::from_rank(Rank::Ace))
             {
                 return StratReturn::Play(PlayerDecision::Split);
             }
 
             // Generally Split 2's, 3's, & 7's
-            if [4, 6, 14_u8].contains(&player_val) {
+            if [4, 6, 14_u8].contains(&player_hand.value()) {
                 // Only split if upcard val not in array
                 if ![8, 9, 10, 11].contains(&dealer_upcard.value()) {
                     return StratReturn::Play(PlayerDecision::Split);
@@ -197,7 +206,7 @@ impl StrategyFunc for SplitOnly {
             }
 
             // Split 6's if Poor upcard
-            if player_val == 12 && dealer_upcard_str == DealerUpcardStrength::Poor {
+            if player_hand.value() == 12 && dealer_upcard_str == DealerUpcardStrength::Poor {
                 return StratReturn::Play(PlayerDecision::Split);
             }
         }
@@ -216,29 +225,27 @@ impl StrategyFunc for BasicStrategy {
         // Assertions
         assert!(state.dealer_upcard.is_some());
         assert!(state.dealer_upcard_str.is_some());
-
-        let player_val = state.player_hand.value();
-        let dealer_upcard = state.dealer_upcard.expect("");
-        let dealer_upcard_str = state.dealer_upcard_str.expect("");
+        assert!(state.player_hand.is_some());
+        let player_hand = state.player_hand.expect("Asserted");
+        let dealer_upcard = state.dealer_upcard.expect("Asserted");
+        let dealer_upcard_str = state.dealer_upcard_str.expect("Asserted");
 
         // Early Surrender Check
 
         // Split Check
         // Check for split first b/c we want to split aces not double
-        if state.player_hand.contains_pair() {
+        if player_hand.contains_pair() {
             // Split 8's and Aces
-            if state
-                .player_hand
+            if player_hand
                 .contains_pair_of(Card::from_rank(Rank::Eight))
-                || state
-                    .player_hand
+                || player_hand
                     .contains_pair_of(Card::from_rank(Rank::Ace))
             {
                 return StratReturn::Play(PlayerDecision::Split);
             }
 
             // Generally Split 2's, 3's, & 7's
-            if [4, 6, 14_u8].contains(&player_val) {
+            if [4, 6, 14_u8].contains(&player_hand.value()) {
                 // Only split if upcard val not in array
                 if ![8, 9, 10, 11].contains(&dealer_upcard.value()) {
                     return StratReturn::Play(PlayerDecision::Split);
@@ -246,7 +253,7 @@ impl StrategyFunc for BasicStrategy {
             }
 
             // Split 6's if Poor upcard
-            if player_val == 12 && dealer_upcard_str == DealerUpcardStrength::Poor {
+            if player_hand.value() == 12 && dealer_upcard_str == DealerUpcardStrength::Poor {
                 return StratReturn::Play(PlayerDecision::Split);
             }
         }
@@ -254,8 +261,8 @@ impl StrategyFunc for BasicStrategy {
         // Double Down Check
         // One Double down allowed
         // Draw only one more card and turn over
-        if !state.player_hand.doubled {
-            match &player_val {
+        if !player_hand.doubled {
+            match &player_hand.value() {
                 11 => {
                     return StratReturn::Play(PlayerDecision::Double);
                 }
@@ -286,9 +293,9 @@ impl StrategyFunc for BasicStrategy {
         // Hit iff:
         // - If Soft Ace & hand_value above cutoff & not blackjack
         // - Or If below cutoff
-        if player_val < cutoff || // Below Cutoff
-        state.player_hand.contains_soft_ace() &&
-        player_val < 18
+        if player_hand.value() < cutoff || // Below Cutoff
+        player_hand.contains_soft_ace() &&
+        player_hand.value() < 18
         {
             // Not if blackjack
             StratReturn::Play(PlayerDecision::Hit)
@@ -312,49 +319,83 @@ impl StrategyFunc for BasicStrategy {
 // High Cards good for player
 // Low cards bad for player reduce chance of dealer bust
 
-pub type CountFunc = Box<dyn Fn(&Card) -> i8>;
+// pub type CountFunc = Box<dyn Fn(&Card) -> i8>;
 
 // Neg count means lower number of 10 value cards
+pub struct HiLo;
+impl StrategyFunc for HiLo {
+    fn get_decision(&self, state: GameState) -> StratReturn {
+        assert_eq!(false, state.played_cards.is_empty());
+        let last_card = state.played_cards.last().expect("Asserted");
+        let delta = match last_card.value() {
+            2..=6 => 1,    // High
+            7..=9 => 0,    // Neutral
+            10..=11 => -1, // Low
+            _ => 0,        // Neutral (Never Reached)
+        };
 
-pub fn update_hi_lo(card: &Card) -> i8 {
-    match card.value() {
-        2..=6 => 1,    // High
-        7..=9 => 0,    // Neutral
-        10..=11 => -1, // Low
-        _ => 0,        // Neutral (Never Reached)
+        StratReturn::Count(delta)
+    }
+
+    fn to_string(&self) -> String {
+        "Hi Lo".to_string()
     }
 }
 
-pub fn update_knock_out(card: &Card) -> i8 {
-    match card.value() {
-        2..=7 => 1,    // High
-        8..=9 => 0,    // Neutral
-        10..=11 => -1, // Low
-        _ => 0,        // Neutral (Never Reached)
+pub struct KnockOut;
+impl StrategyFunc for KnockOut {
+    fn get_decision(&self, state: GameState) -> StratReturn {
+        assert_eq!(false, state.played_cards.is_empty());
+        let last_card = state.played_cards.last().expect("Asserted");
+        let delta = match last_card.value() {
+            2..=7 => 1,    // High
+            8..=9 => 0,    // Neutral
+            10..=11 => -1, // Low
+            _ => 0,        // Neutral (Never Reached)
+        };
+
+        StratReturn::Count(delta)
+    }
+
+    fn to_string(&self) -> String {
+        "Knock Out".to_string()
     }
 }
 
-pub fn omega_2(card: &Card) -> i8 {
-    let plus_two = [4, 5, 6];
+pub struct OmegaTwo;
+impl StrategyFunc for OmegaTwo {
+    fn get_decision(&self, state: GameState) -> StratReturn {
+        let plus_two = [4, 5, 6];
     let plus_one = [2, 3, 7];
-    let zero = [8, 11];
-    let minus_one = 9;
-    let minus_two = 10;
+        let zero = [8, 11];
+        let minus_one = 9;
+        let minus_two = 10;
 
-    if plus_two.contains(&card.value()) {
-        2
-    } else if plus_one.contains(&card.value()) {
-        1
-    } else if zero.contains(&card.value()) {
-        0
-    } else if card.value() == minus_one {
-        -1
-    } else if card.value() == minus_two {
-        -2
-    } else {
-        0
-    } // Never Reached
+        // Get Last card
+        assert_eq!(false, state.played_cards.is_empty());
+        let last_card = state.played_cards.last().expect("Asserted");
+
+        let delta = if plus_two.contains(&last_card.value()) {
+            2
+        } else if plus_one.contains(&last_card.value()) {
+            1
+        } else if zero.contains(&last_card.value()) {
+            0
+        } else if last_card.value() == minus_one {
+            -1
+        } else if last_card.value() == minus_two {
+            -2
+        } else {
+            unreachable!("All card values covered")
+        };
+        StratReturn::Count(delta)
+    }
+
+    fn to_string(&self) -> String {
+        "Omega Two".to_string()
+    }
 }
+
 
 // |-------------------------|
 // |  INSURANCE STRATEGIES   |
@@ -364,7 +405,7 @@ pub fn omega_2(card: &Card) -> i8 {
 /// 2:1 payout
 /// Max bet of half init bet
 /// Paid out if dealer natural
-pub type InsuranceFunc = Box<dyn Fn(GameState) -> bool>;
+
 
 pub struct NoInsurance;
 impl StrategyFunc for NoInsurance {

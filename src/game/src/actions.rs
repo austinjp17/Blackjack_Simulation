@@ -1,5 +1,5 @@
 use rand::Rng;
-use crate::{Game, Hand, HandState, deck::{Card, MultiDeck}};
+use crate::{Game, Hand, HandState, deck::{Card, MultiDeck}, playing_strategy::StratReturn, GameState};
 use std::{time::Instant, ops::Div};
 
 
@@ -135,7 +135,8 @@ impl <R: Rng + Clone> Game <R> {
             Some(card) => {
                 if !card.is_blank() {
                     self.played_cards.push(card);
-                    self.update_count(&card);
+                    self.update_count(self.get_state(None));
+                    
                     
                     return card;
                 }
@@ -150,9 +151,10 @@ impl <R: Rng + Clone> Game <R> {
                 self.new_deck();
                 assert_eq!(expected_deck_size, self.deck.decks.cards.len());
 
-                // Reset Counts
+                // Reset Counts && Played Cards
                 self.running_count = 0;
                 self.true_count = 0.0;
+                self.played_cards = vec![];
 
                 // Debug Statement
                 if self.echo {
@@ -163,23 +165,25 @@ impl <R: Rng + Clone> Game <R> {
             }
         }
         
-        
-
-        
-        
         // Draw card from new deck
         let new_card = self.deck.draw();
         assert!(new_card.is_some()); 
         let new_card = new_card.unwrap();
+
+        // Update Played Cards
+        self.played_cards.push(new_card);
         // Update Count
-        self.update_count(&new_card);
+        self.update_count(self.get_state(None));
         
         new_card
         
     }
 
-    pub fn update_count(&mut self, card: &Card) {
-        let delta = (self.player.counting_strat)(card);
+    pub fn update_count(&mut self, state: GameState) {
+        let delta = match self.player.counting_strat.get_decision(state) {
+            StratReturn::Count(d) => d,
+            _ => unreachable!("Always Count")
+        };
         self.running_count += delta as i32;
         self.true_count = (self.running_count as f64).div(self.deck.deck_count as f64)
     }

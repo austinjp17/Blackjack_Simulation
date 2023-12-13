@@ -35,7 +35,7 @@ impl <R:Rng + Clone> GamePool <R> {
             self.simulated_games += 1;
             // Player decides init bet
             // Filler hand passed
-            let hand_bet = bj.player.decide_bet(bj.get_state(&Hand::new(bj.init_bet)));
+            let hand_bet = bj.player.decide_bet(bj.get_state(Some(Hand::new(bj.init_bet))));
             
 
             // Deal cards after bet decided
