@@ -182,10 +182,7 @@ impl <R:Rng + Clone> GamePool <R> {
 
     pub fn sum_results(&self) {
         #[allow(unused_variables)] // Used for fn name
-        let player_strat = match self.settings.player_strat.as_ref() {
-            playing_strategy::PlayingStrat::Dealer(strat_fn) => {strat_fn}
-            playing_strategy::PlayingStrat::Player(strat_fn) => {strat_fn}
-        }.as_ref();
+        let player_strat = self.settings.player_strat.as_ref().as_ref();
 
         let player_wins: u64 = self.results.iter()
         .map(|(winner, _)| match winner { Winner::Player => {1} _ => {0} })
@@ -204,15 +201,15 @@ impl <R:Rng + Clone> GamePool <R> {
         let player_wins_str = player_wins.to_formatted_string(&Locale::en);
         let num_ties_str = num_ties.to_formatted_string(&Locale::en);
         let payoff_str = self.get_player_payoff().to_formatted_string(&Locale::en);
-        // let player_strat_str = log_fn!(player_strat);
+        let player_strat_str = player_strat.to_string();
 
         // |-------------------------|
         // |      Results Output     |
         // |-------------------------|
         println!("\n -- Simulation Results --\n");
         // Settings
+        println!("Player Strat: {}", player_strat_str);
         println!("n = {}", game_count_str);
-        // println!("Player Strat: {}", player_strat_str);
 
         // Results
         println!("Player Wins: {} | {}%", player_wins_str, (100_f64*(player_wins as f64).div(self.results.len() as f64)));

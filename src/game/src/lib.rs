@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 use std::sync::Arc;
 
-use betting_strategy::BettingFunc;
 use playing_strategy::{CountFunc, InsuranceFunc};
 use rand::Rng;
 
@@ -16,7 +15,7 @@ pub mod betting_strategy;
 use crate::{
     particpants::{Player, Dealer},
     deck::{MultiDeck, Card, Hand, HandState},
-    playing_strategy::{PlayingStrat, DealerUpcardStrength}
+    playing_strategy::{StrategyFunc, DealerUpcardStrength}
 };
 
 #[derive(Clone, Debug)]
@@ -219,11 +218,11 @@ pub struct  GameSettings <R: Rng> {
     pub max_splits: u8,
     pub init_bet: u32,
     pub dealer_cutoff: u8,
-    pub dealer_strat: Arc<PlayingStrat>,
-    pub player_strat: Arc<PlayingStrat>,
-    pub betting_strat: Arc<BettingFunc>,
+    pub dealer_strat: Arc<Box<dyn StrategyFunc>>,
+    pub player_strat: Arc<Box<dyn StrategyFunc>>,
+    pub betting_strat: Arc<Box<dyn StrategyFunc>>,
     pub counting_strat: Arc<CountFunc>,
-    pub insurance_strat: Arc<InsuranceFunc>,
+    pub insurance_strat: Arc<Box<dyn StrategyFunc>>,
     pub allow_early_surrender: bool,
     pub allow_late_surrender: bool,
     pub rng: R,
